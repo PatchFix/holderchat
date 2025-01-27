@@ -173,104 +173,52 @@ function createHolderBoardInput() {
     };
     
     button.addEventListener('click', async () => {
-        if (isProcessing) return; // Prevent multiple clicks
-        
-        // Check if user is logged in
-        if (!displayText.startsWith('HELLO, ')) {
-            showNotification('Please log in first');
+        if (button.textContent === 'Back') {
+            if (chatCleanup) {
+                chatCleanup();
+                chatCleanup = null;
+            }
+            resetView();
             return;
         }
-
-        isProcessing = true;
-        button.disabled = true;
-        button.style.opacity = '0.7';
-        const processingNotification = showProcessingNotification();
-
-        const username = displayText.slice(7, -1);
         
-        try {
-            // Get user's wallet address
-            const response = await fetch('/getWalletAddress', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ username })
-            });
-            
-            const data = await response.json();
-            if (!data.wallet) {
-                showNotification('Error retrieving wallet information');
-                return;
-            }
-
-            // Check HCB balance using Solana Web3
-            const HCB_CONTRACT = 'HUVPbbr9QaDCJ9BQGcP94nzckm4nVYeDpwhWLcb5pump';
+        const contractAddress = input.value.trim();
+        if (contractAddress) {
             try {
-                console.log('Checking HCB balance for wallet:', data.wallet);
-                const connection = new solanaWeb3.Connection('https://mainnet.helius-rpc.com/?api-key=9de0b45d-2c02-471d-91a0-808da4274b97');
-                
-                const tokenMint = new solanaWeb3.PublicKey(HCB_CONTRACT);
-                const publicAccounts = await connection.getParsedTokenAccountsByOwner(
-                    new solanaWeb3.PublicKey(data.wallet),
-                    { mint: tokenMint }
-                );
-                
-                let balance = 0;
-                if (publicAccounts.value.length > 0) {
-                    balance = publicAccounts.value[0].account.data.parsed.info.tokenAmount.uiAmount;
+                // Use our server endpoint instead of calling pump.fun directly
+                const response = await fetch(`/tokenMetadata/${contractAddress}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch token metadata');
                 }
-                
-                console.log('Retrieved HCB balance:', balance);
+                const token = await response.json();
 
-                if (balance < 50000) {
-                    showNotification('You need at least 50,000 $HCB to access holder boards');
-                    return;
+                // Update token info display
+                tokenName.textContent = token.name;
+                tokenSymbol.textContent = token.symbol;
+                if (token.image_uri) {
+                    tokenImage.src = token.image_uri;
+                    tokenImage.style.display = 'block';
                 }
-
-                // If we get here, user has enough HCB - proceed with joining board
-                const contractAddress = input.value.trim();
-                if (contractAddress) {
-                    try {
-                        const API_URL = `https://frontend-api-v2.pump.fun/coins/${contractAddress}`;
-                        const response = await axios.get(API_URL);
-                        const token = response.data;
-                        
-                        // Hide input container
-                        container.style.display = 'none';
-                        
-                        // Create chat interface with token data
-                        if (chatCleanup) {
-                            chatCleanup();
-                        }
-                        chatCleanup = createChatInterface(contractAddress, token, resetView);
-                        
-                        console.log('Token Info:', token);
-                    } catch (error) {
-                        console.error('Error fetching token info:', error);
-                        showNotification('Error fetching token information. Please check the contract address.');
-                    }
-                } else {
-                    showNotification('Please enter a contract address');
+                
+                // Hide input and show token info
+                input.style.display = 'none';
+                tokenInfo.style.display = 'flex';
+                button.textContent = 'Back';
+                
+                // Create chat interface
+                if (chatCleanup) {
+                    chatCleanup();
                 }
+                chatCleanup = createChatInterface(contractAddress, token, resetView);
+                
+                console.log('Token Info:', token);
             } catch (error) {
-                console.error('Error checking HCB balance:', error);
-                showNotification('Error checking HCB balance');
+                console.error('Error fetching token info:', error);
+                showNotification('Error fetching token information. Please check the contract address.');
+                tokenInfo.style.display = 'none';
             }
-            
-            // Remove processing notification and re-enable button
-            processingNotification.remove();
-            button.disabled = false;
-            button.style.opacity = '1';
-            isProcessing = false;
-            
-        } catch (error) {
-            console.error('Error retrieving wallet information:', error);
-            showNotification('Error retrieving wallet information');
-            processingNotification.remove();
-            button.disabled = false;
-            button.style.opacity = '1';
-            isProcessing = false;
+        } else {
+            showNotification('Please enter a contract address');
         }
     });
     
@@ -1966,9 +1914,12 @@ button.addEventListener('click', async () => {
     const contractAddress = input.value.trim();
     if (contractAddress) {
         try {
-            const API_URL = `https://frontend-api-v2.pump.fun/coins/${contractAddress}`;
-            const response = await axios.get(API_URL);
-            const token = response.data;
+            // Use our server endpoint instead of calling pump.fun directly
+            const response = await fetch(`/tokenMetadata/${contractAddress}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch token metadata');
+            }
+            const token = await response.json();
 
             // Update token info display
             tokenName.textContent = token.name;
@@ -1996,7 +1947,7 @@ button.addEventListener('click', async () => {
             tokenInfo.style.display = 'none';
         }
     } else {
-        alert('Please enter a contract address');
+        showNotification('Please enter a contract address');
     }
 });
 

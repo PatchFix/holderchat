@@ -129,6 +129,19 @@ app.post('/getWalletAddress', (req, res) => {
     }
 });
 
+// Add new endpoint for token metadata
+app.get('/tokenMetadata/:contractAddress', async (req, res) => {
+    try {
+        const { contractAddress } = req.params;
+        const API_URL = `https://frontend-api-v2.pump.fun/coins/${contractAddress}`;
+        const response = await axios.get(API_URL);
+        res.json(response.data);
+    } catch (error) {
+        console.error('Error fetching token metadata:', error);
+        res.status(500).json({ error: 'Failed to fetch token metadata' });
+    }
+});
+
 // Start the server
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
