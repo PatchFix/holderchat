@@ -88,6 +88,33 @@ function createConnectButton() {
     document.body.appendChild(buttonContainer);
 }
 
+// Add processing state tracking
+let isProcessing = false;
+
+// Add function to show processing notification
+function showProcessingNotification() {
+    const notification = document.createElement('div');
+    notification.id = 'processing-notification';
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 15px 25px;
+        border-radius: 4px;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 16px;
+        color: white;
+        background: #4e44ce;
+        z-index: 1001;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        white-space: nowrap;
+    `;
+    notification.textContent = 'Processing...';
+    document.body.appendChild(notification);
+    return notification;
+}
+
 // Update createHolderBoardInput function
 function createHolderBoardInput() {
     const container = document.createElement('div');
@@ -146,11 +173,18 @@ function createHolderBoardInput() {
     };
     
     button.addEventListener('click', async () => {
+        if (isProcessing) return; // Prevent multiple clicks
+        
         // Check if user is logged in
         if (!displayText.startsWith('HELLO, ')) {
             showNotification('Please log in first');
             return;
         }
+
+        isProcessing = true;
+        button.disabled = true;
+        button.style.opacity = '0.7';
+        const processingNotification = showProcessingNotification();
 
         const username = displayText.slice(7, -1);
         
@@ -223,9 +257,20 @@ function createHolderBoardInput() {
                 console.error('Error checking HCB balance:', error);
                 showNotification('Error checking HCB balance');
             }
+            
+            // Remove processing notification and re-enable button
+            processingNotification.remove();
+            button.disabled = false;
+            button.style.opacity = '1';
+            isProcessing = false;
+            
         } catch (error) {
             console.error('Error retrieving wallet information:', error);
             showNotification('Error retrieving wallet information');
+            processingNotification.remove();
+            button.disabled = false;
+            button.style.opacity = '1';
+            isProcessing = false;
         }
     });
     
@@ -737,6 +782,11 @@ async function connectWallet(walletName) {
 
 // Update continueRegistration function
 async function continueRegistration(username, publicKey, walletAdapter) {
+    if (isProcessing) return;
+    
+    isProcessing = true;
+    const processingNotification = showProcessingNotification();
+    
     try {
         // Check HCB balance
         const HCB_CONTRACT = 'HUVPbbr9QaDCJ9BQGcP94nzckm4nVYeDpwhWLcb5pump';
@@ -781,9 +831,15 @@ async function continueRegistration(username, publicKey, walletAdapter) {
         });
         
         console.log('Connected wallet:', publicKey);
+        
+        processingNotification.remove();
+        isProcessing = false;
+        
     } catch (err) {
         console.error('Registration error:', err);
         showNotification('Failed to complete registration');
+        processingNotification.remove();
+        isProcessing = false;
     }
 }
 
@@ -1761,6 +1817,8 @@ function createChatInterface(contractAddress, token, resetView) {
 
     // Handle sending messages
     async function sendMessage() {
+        if (isProcessing) return;
+        
         const message = input.value.trim();
         if (!message) return;
         
@@ -1775,13 +1833,17 @@ function createChatInterface(contractAddress, token, resetView) {
             // Check cooldown
             const lastMessageTime = userLastMessage.get(username) || 0;
             const currentTime = Date.now();
-            const timeElapsed = (currentTime - lastMessageTime) / 1000; // Convert to seconds
+            const timeElapsed = (currentTime - lastMessageTime) / 1000;
             
             if (timeElapsed < 15) {
                 const remainingTime = Math.ceil(15 - timeElapsed);
                 showNotification(`Please wait ${remainingTime} seconds before sending another message`);
                 return;
             }
+
+            isProcessing = true;
+            input.disabled = true;
+            const processingNotification = showProcessingNotification();
 
             try {
                 const response = await fetch('/getWalletAddress', {
@@ -1817,9 +1879,18 @@ function createChatInterface(contractAddress, token, resetView) {
                     socket.emit('chatMessage', messageData);
                     input.value = '';
                 }
+                
+                // Remove processing notification and re-enable input
+                processingNotification.remove();
+                input.disabled = false;
+                isProcessing = false;
+                
             } catch (error) {
                 console.error('Error getting wallet/balance:', error);
                 showNotification('Error sending message');
+                processingNotification.remove();
+                input.disabled = false;
+                isProcessing = false;
             }
         } else if (!displayText.startsWith('HELLO, ')) {
             console.log('User not connected. Display text:', displayText);
