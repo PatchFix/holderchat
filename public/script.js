@@ -625,7 +625,7 @@ async function promptUsername() {
     });
 }
 
-// Add password prompt function
+// Update promptPassword function
 async function promptPassword() {
     return new Promise((resolve) => {
         const passwordPrompt = document.createElement('div');
@@ -634,71 +634,34 @@ async function promptPassword() {
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: #9cc1cb;
-            border: 2px solid #612d70;
+            background: rgba(0, 31, 0, 0.9);
+            padding: 20px;
             border-radius: 8px;
-            padding: 30px 20px 20px 20px;
-            text-align: center;
-            z-index: 1001;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            width: auto;
-            min-width: 200px;
+            border: 2px solid #4e44ce;
+            z-index: 1000;
+            width: 300px;
         `;
-
-        // Add close button
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = '×';
-        closeBtn.style.cssText = `
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: none;
-            border: none;
-            font-size: 20px;
-            cursor: pointer;
-            color: #612d70;
-            padding: 0;
-            width: 24px;
-            height: 24px;
-            line-height: 24px;
-            text-align: center;
-            border-radius: 12px;
-            transition: background-color 0.2s;
-        `;
-        
-        closeBtn.addEventListener('mouseenter', () => {
-            closeBtn.style.backgroundColor = 'rgba(97, 45, 112, 0.1)';
-        });
-        
-        closeBtn.addEventListener('mouseleave', () => {
-            closeBtn.style.backgroundColor = 'transparent';
-        });
-        
-        closeBtn.onclick = () => {
-            passwordPrompt.remove();
-            resolve(null);
-        };
 
         const input = document.createElement('input');
         input.type = 'password';
         input.placeholder = 'Enter password (min 8 characters)';
         input.style.cssText = `
-            display: block;
-            width: 180px;
-            margin: 10px auto;
-            padding: 8px;
-            border: 1px solid #612d70;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #4e44ce;
             border-radius: 4px;
+            background: rgba(0, 31, 0, 0.7);
+            color: #00ff00;
             font-family: system-ui, -apple-system, sans-serif;
+            box-sizing: border-box;
         `;
 
         const submitBtn = document.createElement('button');
-        submitBtn.textContent = 'Continue';
+        submitBtn.textContent = 'Set Password';
         submitBtn.style.cssText = `
-            display: block;
-            width: 100px;
-            margin: 10px auto;
-            padding: 8px;
+            width: 100%;
+            padding: 10px;
             background: #4e44ce;
             color: white;
             border: none;
@@ -711,17 +674,18 @@ async function promptPassword() {
             const password = input.value;
             if (password.length >= 8) {
                 passwordPrompt.remove();
+                showNotification('Registration successful! ✨', 'success');
                 resolve(password);
             } else {
                 showNotification('Password must be at least 8 characters long');
             }
         };
 
-        passwordPrompt.appendChild(closeBtn);
         passwordPrompt.appendChild(input);
         passwordPrompt.appendChild(submitBtn);
         document.body.appendChild(passwordPrompt);
-        setTimeout(() => input.focus(), 0);
+
+        input.focus();
     });
 }
 
@@ -1622,7 +1586,7 @@ async function generateVerificationWallet() {
 // Add message cooldown tracking
 const userLastMessage = new Map();
 
-// Update createChatInterface function's sendMessage
+// Update createChatInterface function
 function createChatInterface(contractAddress, token, resetView) {
     const chatContainer = document.createElement('div');
     chatContainer.style.cssText = `
@@ -1777,31 +1741,50 @@ function createChatInterface(contractAddress, token, resetView) {
         resetView();
     });
 
-    // Add message to chat
-    function addMessage(message) {
-        console.log('Received message:', message);
+    // Update message display
+    function displayMessage(messageData) {
         const messageElement = document.createElement('div');
         messageElement.style.cssText = `
             padding: 8px;
-            background: rgba(78, 68, 206, 0.1);
+            margin: 4px 0;
             border-radius: 4px;
+            background: rgba(0, 31, 0, 0.3);
             color: #00ff00;
             font-family: system-ui, -apple-system, sans-serif;
-            font-size: 14px;
         `;
-        
-        const timestamp = new Date(message.timestamp).toLocaleTimeString();
-        const balance = message.balance ? ` [${message.balance.toLocaleString()} ${token.symbol}]` : '';
-        console.log('Formatting message with balance:', balance);
+
+        // Format balance as whole number with commas
+        const formattedBalance = Math.floor(Number(messageData.balance)).toLocaleString();
         
         messageElement.innerHTML = `
-            <strong>${message.username}</strong>${balance} <span style="color: #666;">${timestamp}</span><br>
-            ${message.message}
+            <strong>${messageData.username}</strong> 
+            <span style="color: rgba(0, 255, 0, 0.5);">(${formattedBalance} ${token.symbol})</span>: 
+            ${messageData.message}
         `;
-        
+
         chatMessages.appendChild(messageElement);
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
+
+    // Update socket handlers to ensure balance formatting
+    socket.on('chatHistory', (messages) => {
+        chatMessages.innerHTML = '';
+        messages.forEach(msg => {
+            const messageData = {
+                username: msg.username,
+                message: msg.message,
+                balance: Math.floor(Number(msg.balance)) // Ensure integer
+            };
+            displayMessage(messageData);
+        });
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    });
+
+    socket.on('newMessage', (messageData) => {
+        // Ensure balance is formatted consistently
+        messageData.balance = Math.floor(Number(messageData.balance));
+        displayMessage(messageData);
+    });
 
     // Handle sending messages
     async function sendMessage() {
@@ -1895,13 +1878,6 @@ function createChatInterface(contractAddress, token, resetView) {
 
     // Socket event handlers
     socket.emit('joinTokenChat', contractAddress);
-
-    socket.on('chatHistory', (history) => {
-        chatMessages.innerHTML = '';
-        history.forEach(addMessage);
-    });
-
-    socket.on('newMessage', addMessage);
 
     // Cleanup function
     const cleanup = () => {
