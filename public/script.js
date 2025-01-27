@@ -738,8 +738,23 @@ async function connectWallet(walletName) {
 // Update continueRegistration function
 async function continueRegistration(username, publicKey, walletAdapter) {
     try {
-        // Check balance
-        const balance = await checkTokenBalance(publicKey, publicKey);
+        // Check HCB balance
+        const HCB_CONTRACT = 'HUVPbbr9QaDCJ9BQGcP94nzckm4nVYeDpwhWLcb5pump';
+        console.log('Checking HCB balance for wallet:', publicKey);
+        const connection = new solanaWeb3.Connection('https://mainnet.helius-rpc.com/?api-key=9de0b45d-2c02-471d-91a0-808da4274b97');
+        
+        const tokenMint = new solanaWeb3.PublicKey(HCB_CONTRACT);
+        const publicAccounts = await connection.getParsedTokenAccountsByOwner(
+            new solanaWeb3.PublicKey(publicKey),
+            { mint: tokenMint }
+        );
+        
+        let balance = 0;
+        if (publicAccounts.value.length > 0) {
+            balance = publicAccounts.value[0].account.data.parsed.info.tokenAmount.uiAmount;
+        }
+        
+        console.log('Retrieved HCB balance:', balance);
         
         // Prompt for password
         const password = await promptPassword();
@@ -754,8 +769,8 @@ async function continueRegistration(username, publicKey, walletAdapter) {
         }, (response) => {
             if (response.success) {
                 displayText = `HELLO, ${username}!`;
-                backgroundOverlay.remove();
-                overlay.remove();
+                if (backgroundOverlay) backgroundOverlay.remove();
+                if (overlay) overlay.remove();
                 
                 // Remove auth buttons after successful registration
                 if (buttonContainer) {
@@ -764,14 +779,6 @@ async function continueRegistration(username, publicKey, walletAdapter) {
                 showNotification('Successfully registered', 'success');
             }
         });
-        
-        // Update connect button
-        const connectBtn = document.querySelector('button[style*="background: #4e44ce"]');
-        if (connectBtn) {
-            connectBtn.textContent = publicKey.substring(0, 5);
-            connectBtn.removeEventListener('click', () => createWalletOverlay());
-            connectBtn.onclick = null;
-        }
         
         console.log('Connected wallet:', publicKey);
     } catch (err) {
