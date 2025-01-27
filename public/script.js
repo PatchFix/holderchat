@@ -143,6 +143,44 @@ function createHolderBoardInput() {
         color: #00ff00;
         text-align: center;
     `;
+
+    // Create token info elements
+    const tokenInfo = document.createElement('div');
+    tokenInfo.style.cssText = `
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+    `;
+
+    const tokenImage = document.createElement('img');
+    tokenImage.style.cssText = `
+        width: 50px;
+        height: 50px;
+        border-radius: 25px;
+        display: none;
+    `;
+
+    const tokenName = document.createElement('div');
+    tokenName.style.cssText = `
+        color: #00ff00;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 18px;
+    `;
+
+    const tokenSymbol = document.createElement('div');
+    tokenSymbol.style.cssText = `
+        color: #00ff00;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 14px;
+        opacity: 0.8;
+    `;
+
+    tokenInfo.appendChild(tokenImage);
+    tokenInfo.appendChild(tokenName);
+    tokenInfo.appendChild(tokenSymbol);
+    container.appendChild(tokenInfo);
     
     const button = document.createElement('button');
     button.textContent = 'Join Holder Board';
@@ -168,7 +206,8 @@ function createHolderBoardInput() {
     
     const resetView = () => {
         input.style.display = 'block';
-        container.style.display = 'flex';
+        tokenInfo.style.display = 'none';
+        button.textContent = 'Join Holder Board';
         input.value = '';
     };
     
@@ -185,12 +224,13 @@ function createHolderBoardInput() {
         const contractAddress = input.value.trim();
         if (contractAddress) {
             try {
-                // Use our server endpoint instead of calling pump.fun directly
+                console.log('Fetching token metadata for:', contractAddress);
                 const response = await fetch(`/tokenMetadata/${contractAddress}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch token metadata');
                 }
                 const token = await response.json();
+                console.log('Received token metadata:', token);
 
                 // Update token info display
                 tokenName.textContent = token.name;
